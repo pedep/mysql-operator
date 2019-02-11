@@ -21,15 +21,19 @@ import (
 	"fmt"
 	"os"
 
-	customLog "github.com/presslabs/mysql-operator/pkg/util/log"
+	"github.com/go-logr/zapr"
+	_ "github.com/golang/glog"
 	"github.com/spf13/pflag"
+	"go.uber.org/zap"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 
+	logf "github.com/presslabs/controller-util/log"
+
 	"github.com/presslabs/mysql-operator/pkg/apis"
+	"github.com/presslabs/mysql-operator/pkg/broker"
 	"github.com/presslabs/mysql-operator/pkg/controller"
 	"github.com/presslabs/mysql-operator/pkg/options"
 )
@@ -53,7 +57,10 @@ func main() {
 	}
 
 	// set logging
-	logf.SetLogger(customLog.ZapLogger())
+	development := true
+	zapLogger := logf.RawZapLoggerTo(os.Stderr, development)
+	logf.SetLogger(zapr.NewLogger(zapLogger))
+	zap.ReplaceGlobals(zapLogger)
 
 	if err := opt.Validate(); err != nil {
 		log.Error(err, "failed to validate command line args, see help.")
@@ -89,6 +96,11 @@ func main() {
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
 		log.Error(err, "unable to setup controllers")
+		os.Exit(1)
+	}
+
+	if err := broker.AddToManager(mgr); err != nil {
+		log.Error(err, "unable to setup service broker server")
 		os.Exit(1)
 	}
 
