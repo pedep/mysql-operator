@@ -53,6 +53,7 @@ type Options struct {
 
 	HTTPServeAddr string
 
+	LeaderElection          bool
 	LeaderElectionNamespace string
 	LeaderElectionID        string
 }
@@ -88,6 +89,7 @@ const (
 
 	defaultHTTPServerAddr = ":80"
 
+	defaultLeaderElection          = true
 	defaultLeaderElectionNamespace = "default"
 	defaultLeaderElectionID        = ""
 )
@@ -122,6 +124,8 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&o.HTTPServeAddr, "http-serve-addr", defaultHTTPServerAddr,
 		"The address for http server.")
 
+	fs.BoolVar(&o.LeaderElection, "leader-election", defaultLeaderElection,
+		"Enable or disable leader election.")
 	fs.StringVar(&o.LeaderElectionNamespace, "leader-election-namespace", defaultLeaderElectionNamespace,
 		"The leader election namespace.")
 	fs.StringVar(&o.LeaderElectionID, "leader-election-id", defaultLeaderElectionID,
