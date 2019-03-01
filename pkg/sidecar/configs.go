@@ -22,6 +22,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-ini/ini"
 	// add mysql driver
@@ -77,14 +78,22 @@ type Config struct {
 	MetricsPassword string
 
 	// orchestrator credentials
-	OrchestratorUser     string
-	OrchestratorPassword string
+	OrchestratorUser     UpdatableString
+	OrchestratorPassword UpdatableString
+
+	// MySQL and app related credentials
+	MysqlRootPassword UpdatableString
+	MysqlUser         UpdatableString
+	MysqlPassword     UpdatableString
+	MysqlDatabase     UpdatableString
+
+	ReconcileTime time.Duration
 }
 
 // FQDNForServer returns the pod hostname for given MySQL server id
 func (cfg *Config) FQDNForServer(id int) string {
 	base := mysqlcluster.GetNameForResource(mysqlcluster.StatefulSet, cfg.ClusterName)
-	return fmt.Sprintf("%s-%d.%s.%s", base, id-100, cfg.ServiceName, cfg.Namespace)
+	return fmt.Sprintf("%s-%d.%s.%s", base, id-MysqlServerIDOffset, cfg.ServiceName, cfg.Namespace)
 }
 
 func (cfg *Config) newOrcClient() orc.Interface {
@@ -144,8 +153,15 @@ func NewConfig() *Config {
 		MetricsUser:     getEnvValue("MYSQL_METRICS_EXPORTER_USER"),
 		MetricsPassword: getEnvValue("MYSQL_METRICS_EXPORTER_PASSWORD"),
 
-		OrchestratorUser:     getEnvValue("MYSQL_ORC_TOPOLOGY_USER"),
-		OrchestratorPassword: getEnvValue("MYSQL_ORC_TOPOLOGY_PASSWORD"),
+		OrchestratorUser:     GetValueFromFile(absPath("ORC_TOPOLOGY_USER")),
+		OrchestratorPassword: GetValueFromFile(absPath("ORC_TOPOLOGY_PASSWORD")),
+
+		MysqlUser:         GetValueFromFile(absPath("USER")),
+		MysqlPassword:     GetValueFromFile(absPath("PASSWORD")),
+		MysqlDatabase:     GetValueFromFile(absPath("DATABASE")),
+		MysqlRootPassword: GetValueFromFile(absPath("ROOT_PASSWORD")),
+
+		ReconcileTime: 10 * time.Second,
 	}
 
 	// get server id
@@ -167,6 +183,10 @@ func getEnvValue(key string) string {
 	}
 
 	return value
+}
+
+func absPath(key string) string {
+	return path.Join(secretMountPath, key)
 }
 
 func getOrdinalFromHostname(hn string) int {
